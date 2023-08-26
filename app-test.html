@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Passbook</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f7f7f7; /* Light gray background color */
+    }
+
+    #container {
+      width: 80%;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #ffffff; /* White container background */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
+
+    h1 {
+      margin-top: 0;
+      text-align: center;
+      color: #333333;
+    }
+
+    p {
+      color: #777777;
+    }
+
+    ol {
+      color: #555555;
+      margin-left: 20px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #dddddd;
+      border-radius: 4px;
+      box-shadow: none;
+    }
+
+    button {
+      background-color: #4e90b3; /* New button color */
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      cursor: pointer;
+      margin-right: 10px;
+      border-radius: 4px;
+      box-shadow: none;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #367a9f; /* Darker shade on hover */
+    }
+
+    #result {
+      margin-top: 20px;
+      color: #555555;
+    }
+
+    /* Toast Styles */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 4px;
+      opacity: 0; /* Initially hidden */
+      transition: opacity 0.3s;
+      z-index: 9999;
+    }
+
+    /* Toast animation when shown */
+    #toast.show {
+      opacity: 1;
+    }
+
+    /* New CSS for the container holding the input and "Save" button */
+    #inputAndSaveContainer {
+      display: flex; /* Use Flexbox to make the input and button align horizontally */
+      align-items: center; /* Vertically align the elements within the container */
+    }
+
+    /* Adjust the margin between the input and the "Save" button */
+    #inputAndSaveContainer input[type="text"] {
+      margin-right: 10px; /* You can adjust the value to control the spacing */
+    }
+
+    /* Toggle Switch Styles */
+    .toggle-switch-container {
+      display: flex;
+      align-items: center; /* Vertically center the toggle switch and label */
+      margin-bottom: 10px; /* Add some spacing between the toggle switch and label */
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px; /* Adjust the width to your preference */
+      height: 24px; /* Adjust the height to your preference */
+    }
+
+    .toggle-switch input {
+      display: none;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      border-radius: 34px;
+      transition: 0.4s;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px; /* Adjust the height to your preference */
+      width: 20px; /* Adjust the width to your preference */
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.4s;
+    }
+
+    input:checked + .slider {
+      background-color: #4e90b3; /* New button color when tracking is ON */
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(16px); /* Adjust the position to match the width of the slider */
+    }
+
+        /* CSS to style the tooltip */
+    .open-passbook-button {
+      display: inline-block;
+      color: #4e90b3;
+      cursor: pointer;
+      position: relative;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>Passbook</h1>
+    <p>Welcome to Passbook, your personal Expense Tracker app. Follow the steps below to get started:</p>
+    <ol>
+      <li>Make a copy of this Google Sheet if you haven't done it before. This will be your passbook: <a href="https://docs.google.com/spreadsheets/d/1126GAmGR77qNIc1PCH3GkyR-TMkb0uxpIA44F0x5aWk/copy" target="_blank">Copy the Sheet</a></li>
+      <li>
+        <div id="inputAndSaveContainer">
+          <input type="text" id="expenseSheet" placeholder="Enter your expense sheet URL">
+          <button onclick="saveSheet()">Save</button>
+        </div>
+      </li>
+      <li>
+        <div id="trackingToggle" class="toggle-switch">
+          <input type="checkbox" id="toggle" onchange="toggleTracking()">
+          <span class="slider"></span>
+        </div>
+        <label for="toggle">Start Tracking</label>
+      </li>
+      <li>
+        Add your cards below in the below cards/upi section.
+      </li>
+      <li>
+        <div class="open-passbook-button" onclick="displaySheetUrl()">
+          Open your Passbook
+        </div>
+      </li>
+    </ol>
+    <div id="result"></div>
+    <h2>Cards/UPI</h2>
+    <table id="bankTable">
+      <tr>
+        <th>Bank</th>
+        <th>Card Name</th>
+      </tr>
+      <tr>
+        <td>
+          <select class="bankDropdown">
+            <!-- Populate this dropdown with predefined banks -->
+            <!-- For example: -->
+            <option value="hdfc_cc">HDFC CC</option>
+            <option value="hdfc_upi">HDFC UPI</option>
+            <option value="axis_upi">AXIS UPI</option>
+            <option value="axis_cc">AXIS CC</option>
+            <option value="idfc_cc">IDFC CC</option>
+            <option value="icici_cc">ICICI CC</option>
+            <option value="icici_food">ICICI Food</option>
+            <option value="sodexo">Sodexo</option>
+            <option value="citi">Citi CC</option>
+            <!-- Add more options as needed -->
+          </select>
+        </td>
+        <td><input type="text" class="cardNameInput" placeholder="Enter card name"></td>
+      </tr>
+    </table>
+    
+    <button onclick="addNewRow()">Add New Bank</button>
+    <button onclick="saveCards()">Save Bank Cards</button>
+    <br>
+    <br>
+    <br>
+    <br>
+    <div>
+      <input type="text" id="telegramToken" placeholder="Enter your Telegram Bot Token(optional)">
+    </div>
+    <div>
+      <input type="text" id="telegramChatId" placeholder="Enter your Telegram ChatId(optional)">
+      <button onclick="saveTelegramSettings()">Save</button>
+    </div>
+  </div>
+
+
+  <!-- Toast Element -->
+  <div id="toast"></div>
+
+  <script>
+
+    function addNewRow() {
+      var table = document.getElementById('bankTable');
+      var newRow = table.insertRow(table.rows.length);
+      
+      var bankCell = newRow.insertCell(0);
+      var bankDropdown = document.createElement('select');
+      bankDropdown.className = 'bankDropdown';
+      // Populate this dropdown with predefined banks or dynamically fetch the banks from user data
+      bankDropdown.innerHTML = `
+            <option value="hdfc_cc">HDFC CC</option>
+            <option value="hdfc_upi">HDFC UPI</option>
+            <option value="axis_upi">AXIS UPI</option>
+            <option value="axis_cc">AXIS CC</option>
+            <option value="idfc_cc">IDFC CC</option>
+            <option value="icici_cc">ICICI CC</option>
+            <option value="icici_food">ICICI Food</option>
+            <option value="sodexo">Sodexo</option>
+            <option value="citi">Citi CC</option>
+      `;
+      bankCell.appendChild(bankDropdown);
+
+      var cardNameCell = newRow.insertCell(1);
+      var cardNameInput = document.createElement('input');
+      cardNameInput.type = 'text';
+      cardNameInput.className = 'cardNameInput';
+      cardNameInput.placeholder = 'Enter card name';
+      cardNameCell.appendChild(cardNameInput);
+    }
+
+    function saveCards() {
+      var bankCards = [];
+      var tableRows = document.querySelectorAll("#bankTable tr");
+      for (var i = 1; i < tableRows.length; i++) {
+        var cardId = tableRows[i].querySelector(".bankDropdown").value;
+        var cardName = tableRows[i].querySelector(".cardNameInput").value;
+        if (cardName.trim() !== '') {
+          bankCards.push({cardName: cardName, cardId: cardId });
+        }
+      }
+
+      // Save the bankCards array as JSON in user properties
+      var jsonString = JSON.stringify(bankCards);
+      google.script.run.saveCards(jsonString);
+
+      // Optional: Display a toast message to indicate successful save
+      showToast("Bank Cards saved successfully!");
+    }
+
+    function loadCards() {
+      google.script.run.withSuccessHandler(function (savedBankCardsJson) {
+        var savedBankCards = JSON.parse(savedBankCardsJson);
+        var table = document.getElementById('bankTable');
+        savedBankCards.forEach(function (bankCard) {
+          var newRow = table.insertRow(-1); // Add new row at the end of the table
+          
+          var bankCell = newRow.insertCell(0);
+          var bankDropdown = document.createElement('select');
+          bankDropdown.className = 'bankDropdown';
+          // Populate this dropdown with predefined banks or dynamically fetch the banks from user data
+          bankDropdown.innerHTML = `
+            <option value="hdfc_cc">HDFC CC</option>
+            <option value="hdfc_upi">HDFC UPI</option>
+            <option value="axis_upi">AXIS UPI</option>
+            <option value="axis_cc">AXIS CC</option>
+            <option value="idfc_cc">IDFC CC</option>
+            <option value="icici_cc">ICICI CC</option>
+            <option value="icici_food">ICICI Food</option>
+            <option value="sodexo">Sodexo</option>
+            <option value="citi">Citi CC</option>
+          `;
+          bankDropdown.value = bankCard.cardId; // Set the selected bank based on saved data
+          bankCell.appendChild(bankDropdown);
+
+          var cardNameCell = newRow.insertCell(1);
+          var cardNameInput = document.createElement('input');
+          cardNameInput.type = 'text';
+          cardNameInput.className = 'cardNameInput';
+          cardNameInput.placeholder = 'Enter card name';
+          cardNameInput.value = bankCard.cardName; // Set the custom card name based on saved data
+          cardNameCell.appendChild(cardNameInput);
+        });
+      }).getCards();
+    }
+    
+    function showToast(message) {
+      var toastElement = document.getElementById("toast");
+      toastElement.textContent = message;
+      toastElement.classList.add("show");
+
+      setTimeout(function() {
+        toastElement.classList.remove("show");
+      }, 5000);
+    }
+
+    function saveSheet() {
+      var userInput = document.getElementById("expenseSheet").value;
+      google.script.run.saveExpenseSheet(userInput);
+    }
+
+    function saveTelegramSettings() {
+      var telegramToken = document.getElementById("telegramToken").value;
+      var telegramChatId = document.getElementById("telegramChatId").value;
+      google.script.run.withSuccessHandler(displayCallback).saveTelegramSettings(telegramToken, telegramChatId);
+    }
+
+    function startTracking() {
+      google.script.run.withSuccessHandler(displayCallback).startTracking();
+    }
+
+    function stopTracking() {
+      google.script.run.withSuccessHandler(displayCallback).stopTracking();
+    }
+
+
+    function displaySheetUrl() {
+      google.script.run.withSuccessHandler(openExpenseSheet).getExpenseSheet();
+    }
+
+    function displayCallback(data) {
+      showToast("Message: " + data);
+    }
+
+    function toggleTracking() {
+      var trackingToggle = document.getElementById("toggle");
+      if (trackingToggle.checked) {
+        startTracking();
+      } else {
+        stopTracking();
+      }
+    }
+
+    function getTrackingStatus() {
+      google.script.run.withSuccessHandler(updateTrackingStatus).getTrackingStatus();
+    }
+
+    function updateTrackingStatus(status) {
+      var trackingToggle = document.getElementById("toggle");
+      trackingToggle.checked = status === "STARTED";
+    }
+
+
+    function openExpenseSheet(expenseSheetUrl) {
+      if (expenseSheetUrl) {
+        window.open(expenseSheetUrl, "_blank");
+      } else {
+        showToast("Expense Sheet URL is not available.");
+      }
+    }
+
+    window.onload = function() {
+      getTrackingStatus();
+      loadCards();
+    };
+  </script>
+</body>
+</html>
