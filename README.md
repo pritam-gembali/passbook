@@ -4,4 +4,4 @@ Hey folks. I’ve created an expense tracker which searches your email and recor
 Please reach out to me if you are interested to set this up for yourself. Shouldn’t take more than 5 min.
 PS: Currently only works on few banks credit cards (hdfc, icici, axis, idfc, citi) and upi (hdfc, axis). More cards/upi can be added.
 
-To Setup your expense tracking app. Login using your email through which your email which recieves the transaction alerts.
+To Setup your expense tracking app. Login using your email through which your email which recieves the transaction alerts using this [link](https://script.google.com/macros/s/AKfycbwtoEdgWAdp3syN4NUhEx2h1z1jhZjFeQy4me4WdmqlZRMEGXnRMg9mckO6xl_yX7qe/exec)
