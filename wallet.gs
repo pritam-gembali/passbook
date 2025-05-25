@@ -37,6 +37,7 @@ function parseAmazonMessages(messages){
     let subject = messages[m].subject;
     let recharges = subject.match(/Your (.*) for Rs. (\d+) is successful/);
     let amazonOrderMatch = subject.match(/(?:Rs |₹)(\d+\.\d{2}) (was paid on Amazon.in)/);
+    let amazonOrderMatchWithAPay = subject.match(/(?:Rs |₹)(\d+\.\d{1}) (was paid on Amazon.in)/);
     let partnerPaymentMatch = subject.match(/Your payment of ₹ (\d+\.\d+) to (.*) was successful/);
     let utilitiesPaymentMatch = subject.match(/Your (.*) payment for Rs\.(\d+\.\d+) is successful/)
     var rec = {};
@@ -62,7 +63,13 @@ function parseAmazonMessages(messages){
       rec.card = "Amazon Pay Balance";
       rec.date = Moment.moment(messages[m].messageBody.getDate()).format("M/D/YYYY");
       rec.merchant = utilitiesPaymentMatch[1];
-    }else {
+    } else if (amazonOrderMatchWithAPay && messages[m].messageBody.getDate().getDate() > 8) {
+      rec.amount = amazonOrderMatchWithAPay[1];
+      let walletTypeMatch = textWithoutBreaks.match(/.*Voucher*/);
+      rec.card = walletTypeMatch ? "Amazon Shopping Voucher": "Amazon Pay Balance";
+      rec.date = Moment.moment(messages[m].messageBody.getDate()).format("M/D/YYYY");
+      rec.merchant = "Amazon";
+    } else {
       continue;
     }
     rec.messageId = messages[m].messageBody.getId();

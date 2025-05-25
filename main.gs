@@ -1,16 +1,60 @@
 const debug = false;
 
 function processTransactionEmails() {
+  var email = Session.getEffectiveUser().getEmail();
+  Logger.log(email);
   let sheetUrl = getExpenseSheet();
   if (!sheetUrl){
     return false;
   }
   let sheet = SpreadsheetApp.openByUrl(sheetUrl);
   let cardsInfo = JSON.parse(getCards());
-  for( let cardInfo of cardsInfo) {
-    processTransactions(CardsMap[cardInfo['cardId']], "30d", cardInfo['cardName'], sheet);
+  for( let cardId in CardsMap) {
+    let cardInfo = cardsInfo.find(info => info['cardId'] === cardId);
+    let cardName = cardInfo ? cardInfo['cardName'] : cardId; 
+    processTransactions(CardsMap[cardId], "30d", cardName, sheet);
   }
   return true;
+}
+
+function pastTransactions () {
+  var email = Session.getEffectiveUser().getEmail();
+  Logger.log(email);
+  let sheetUrl = getExpenseSheet();
+  if (!sheetUrl){
+    return false;
+  }
+  let sheet = SpreadsheetApp.openByUrl(sheetUrl);
+  let cardsInfo = JSON.parse(getCards());
+  // for( let cardInfo of cardsInfo) {
+  //   processTransactions2(CardsMap[cardInfo['cardId']], "30d", cardInfo['cardName'], sheet);
+  // }
+  processTransactions2(RBLZomatoCC, "750d", "RBL Zomato", sheet);
+  return true;
+}
+
+function tempProcessInternationTransactions() {
+  var email = Session.getEffectiveUser().getEmail();
+  Logger.log(email);
+  let sheetUrl = getExpenseSheet();
+  if (!sheetUrl){
+    return false;
+  }
+  let sheet = SpreadsheetApp.openByUrl(sheetUrl);
+  // This is to notify you that FAMILYMART has raised a debit request for Rs 333.43 on your HDFC Bank Credit Card ending 6422, to validate your card credentials, at FAMILYMART on 27-10-2023 18:29:47. Authorization code:- 050212
+  let cardInfo = new CardInfo("from:hdfcbank.net AND subject:Alert : Update on your HDFC Bank Credit Card", /This is to notify you that (.*) has raised a debit request for Rs (\d+\.\d+) on your HDFC Bank Credit Card ending (\d+), to validate your card credentials/, -1 , "DD-MMM-YYYY", 1 , 2)
+  var messages = getMessages("newer_than:20d" + " AND " + cardInfo.searchString);
+  let records = parseMessageData(messages, cardInfo, "HDFC Infinia");
+  saveDataToSheet(records, "Expenses", sheet);  
+  console.log(records.length);
+}
+
+function testRegex() {
+  var testString = "Pritam Gembali, Thank you for using your credit card no. XX3681 for INR 4799.44 at GANESH AUTO on 05-08-2024 20:41:28 IST.";
+  var results = testString.match(AxisBankCCRegex);
+  console.log(results);
+  var results = testString.match(/[Cc]ard no.\s(XX\d+)\sfor\sINR\s(\d+(?:\.\d+)?)?\sat\s+(.+?)\son\s*(\d+-\d+-\d+\s\d+:\d+:\d+)/);
+  console.log(results);
 }
 
 function getMessages(searchString) {
@@ -33,16 +77,26 @@ function processRecurringTransactions() {
   }
   let sheet = SpreadsheetApp.openByUrl(sheetUrl);
   let records = [];
-  var rec = {};
-  rec.amount = 40000;
-  rec.messageTime = Moment.moment().format("HH:mm:SS");
-  rec.card = "Axis Net Banking";
+  var cookRec = {};
+  cookRec.amount = 10000;
+  cookRec.messageTime = Moment.moment().format("HH:mm:SS");
+  cookRec.card = "Cash";
   var formattedDate = Moment.moment().format("M/D/YYYY");
-  rec.date= formattedDate;
-  rec.merchant = "SBI Education loan";
-  rec.messageId = "recurring expense " + rec.date + " " + rec.messageTime;
-  records.push(rec);
+  cookRec.date= formattedDate;
+  cookRec.merchant = "Cook payments";
+  cookRec.messageId = "recurring expense " + cookRec.date + " " + cookRec.messageTime;
+  records.push(cookRec);
   saveDataToSheet(records, "Expenses", sheet);
+}
+
+function processTransactions2(cardInfo, days, cardName, sheet = undefined) {
+  console.log(cardName);
+  var messages = getMessages("after:2022/1/1 before:2024/1/1" + " AND " + cardInfo.searchString +" AND -label:spends_processed");
+  let records = parseMessageData(messages, cardInfo, cardName);
+  saveDataToSheet(records, "Expenses", sheet);
+  labelMessagesAsDone(messages, "spends_processed");
+  console.log(records.length);
+  console.log(records);
 }
 
 function processTransactions(cardInfo, days, cardName, sheet = undefined) {
@@ -82,7 +136,7 @@ function parseMessageData(messages, cardInfo, cardName) {
     const upiRegexPattern = /UPI\/(?:P2A|P2M|P2P)\/\d+\//;
     rec.merchant = matches[cardInfo.merchantIndex].trim().replace(upiRegexPattern, "");
     rec.messageId = messages[m].getId();
-    if(!["VPA cred.club@axisb", "CRED Club/Axis Bank"].includes(rec.merchant)) {
+    if(!["VPA cred.club@axisb CRED","VPA cred.club@axisb", "CRED Club/Axis Bank", "VPA credclub@icici"].includes(rec.merchant)) {
       records.push(rec);
     }
   }
@@ -99,13 +153,14 @@ function saveDataToSheet(records, sheet, altSheet) {
     if(debug || messageIdSearchResults.length > 0) {
       continue;
     }
-    messagesSheet.appendRow([records[r].messageTime, records[r].messageId]);
+    messagesSheet.appendRow([records[r].date + " " + records[r].messageTime, records[r].messageId]);
     let recordsSheet = spreadsheet.getSheetByName(sheet);
     let categorySet = new Set();
     let descriptionSet = new Set();
     let merchantsColumn = recordsSheet.getRange(1, 6, recordsSheet.getLastRow(), 1)
     let prevMerchants = merchantsColumn.createTextFinder(records[r].merchant).matchEntireCell(true).findAll();
-    for( var i=0; i < prevMerchants.length; i++) {
+    //get the last 3 records and see if there's a consistent pattern that can be established
+    for( var i=0; i < Math.min(prevMerchants.length, 3); i++) {
       let prevCategory = prevMerchants[i].offset(0,-2).getValue();
       let prevDescription = prevMerchants[i].offset(0,-1).getValue();
       categorySet.add(prevCategory);
@@ -132,7 +187,9 @@ function labelMessagesAsDone(messages, label) {
   }
   
   for(var m =0; m < messages.length; m++ ){
-     label_obj.addToThread(messages[m].getThread());  
+     label_obj.addToThread(messages[m].getThread());
+     messages[m].markRead();  // this also marks emails that have been searched but not processed and added to the sheets as expense
+     // But theses emails are far and fewer.
   }
   
 }
